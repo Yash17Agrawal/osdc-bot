@@ -3,6 +3,10 @@ const request = require('request');
 
 const config = require('./config');
 const joker = require('./services/jokeService.js');
+const wiki = require('./services/wikiService');
+const weather = require('./services/weatherService');
+const places = require('./services/mapService');
+const morejokes = require('./services/morejokes');
 
 const ROOM_ID  = config.roomId;
 const TOKEN   = config.token;
@@ -17,12 +21,16 @@ const SERVER_HOWDOI_PREFIX_URL = `${SERVER_PREFIX_URL}/howdoi?query=`;
 const CHATROOM_SUFFIX_URL = `/v1/rooms/${ROOM_ID}/chatMessages`;
 const CHATROOM_URL = `https://api.gitter.im${CHATROOM_SUFFIX_URL}`;
 
-const BOT_MENTION_NAME = "@osdc-bot";
+const BOT_MENTION_NAME = '@osdc-bot';
 const BOT_ACTIONS = {
   HELP: 'help',
   JOKE: 'joke',
   DEPLOY: 'deploy',
-  HOWDOI: 'howdoi'
+  HOWDOI: 'howdoi',
+  WIKI : 'wiki',
+  WEATHER: 'weather',
+  PLACES: 'locate',
+  MOREJOKES : 'morejokes'
 };
 
 // Authentication extension
@@ -93,11 +101,10 @@ function _getBotHelp() {
 function reply_to_user(user, message) {
   const displayName = user.displayName;
   const username = user.username;
-
   if (message.startsWith(BOT_MENTION_NAME)) {
     const parsedMessage = message.slice(BOT_MENTION_NAME.length + 1);
-    console.log(parsedMessage);
     const startsWithString = _getStartsWith(parsedMessage);
+    const cityName = parsedMessage.substr(parsedMessage.indexOf(' ')+1);
     if (startsWithString === BOT_ACTIONS.HELP) {
       send(_getBotHelp(), username);
     }
@@ -111,20 +118,34 @@ function reply_to_user(user, message) {
         url: SERVER_DEPLOY_URL,
         method: "GET"
       }, (error, response, body) => {
-        console.log(response);
       });
     }
 
     if (startsWithString === BOT_ACTIONS.HOWDOI) {
       var query = encodeURIComponent(parsedMessage.slice(7, parsedMessage.length));
-      console.log(query);
       request({
         url: SERVER_HOWDOI_PREFIX_URL + query,
         method: "GET"
       }, (error, response, body) => {
-        console.log(body);
         send(body);
       });
+    }
+
+    if (startsWithString === BOT_ACTIONS.WIKI) {
+      var requestedData = parsedMessage.slice(5, parsedMessage.length);
+      wiki(send, username, requestedData);
+    }
+
+    if (startsWithString === BOT_ACTIONS.WEATHER) {
+      weather.getWeather(send, username, cityName);
+    }
+
+    if (startsWithString === BOT_ACTIONS.PLACES) {
+      places.getPlaces(send, username, cityName);
+    }
+
+    if (startsWithString === BOT_ACTIONS.MOREJOKES) {
+      morejokes.getMorejokes(send, username);
     }
   }
 }
@@ -141,7 +162,6 @@ function _postOnChat(message) {
       text: message
     }
   }, (error, response, body) => {
-    console.log(response);
   });
 }
 
